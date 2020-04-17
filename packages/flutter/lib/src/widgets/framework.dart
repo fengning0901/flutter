@@ -698,123 +698,86 @@ abstract class StatelessWidget extends Widget {
   Widget build(BuildContext context);
 }
 
-/// A widget that has mutable state.
+/// 一种有可变state的widget
 ///
-/// State is information that (1) can be read synchronously when the widget is
-/// built and (2) might change during the lifetime of the widget. It is the
-/// responsibility of the widget implementer to ensure that the [State] is
-/// promptly notified when such state changes, using [State.setState].
+/// State是一种在widget被建造的时候可以同步读到，并且在生命周期中可能变化的信息。
+/// 确保在状态发生变化的时候使用[State.setState]及时通知到State是这个State实现者的责任。
 ///
-/// A stateful widget is a widget that describes part of the user interface by
-/// building a constellation of other widgets that describe the user interface
-/// more concretely. The building process continues recursively until the
-/// description of the user interface is fully concrete (e.g., consists
-/// entirely of [RenderObjectWidget]s, which describe concrete [RenderObject]s).
+/// (这里与stateless一致)
+/// 有状态小部件是通过构建一组更具体地描述用户界面的其他小部件来描述部分用户界面的小部件。
+/// 构建过程继续递归地进行，直到用户界面的描述完全具体(例如，完全由[RenderObjectWidget]s
+/// 组成，它描述具体的[RenderObject]s)。
 ///
-/// Stateful widgets are useful when the part of the user interface you are
-/// describing can change dynamically, e.g. due to having an internal
-/// clock-driven state, or depending on some system state. For compositions that
-/// depend only on the configuration information in the object itself and the
-/// [BuildContext] in which the widget is inflated, consider using
-/// [StatelessWidget].
+/// 当你描述的用户界面部分可以动态改变时，有状态的小部件是很有用的，例如，由于有一个内部时钟
+/// 驱动的状态，或者依赖于某些系统状态。对于仅依赖于对象本身中的配置信息和小部件膨胀的
+/// [BuildContext]的组合，可以考虑使用[StatelessWidget]。
 ///
 /// {@youtube 560 315 https://www.youtube.com/watch?v=AqCMFXEmf3w}
 ///
-/// [StatefulWidget] instances themselves are immutable and store their mutable
-/// state either in separate [State] objects that are created by the
-/// [createState] method, or in objects to which that [State] subscribes, for
-/// example [Stream] or [ChangeNotifier] objects, to which references are stored
-/// in final fields on the [StatefulWidget] itself.
+/// [StatefulWidget]的实例是不可变的,他们的可变状态存储在由[createState]方法所
+/// 创建的单独的[State]对象里,或在[State]订阅的对象里,例如[Stream]或[ChangeNotifier]
+/// 对象，以及存储在(StatefulWidget)本身的final字段。
 ///
-/// The framework calls [createState] whenever it inflates a
-/// [StatefulWidget], which means that multiple [State] objects might be
-/// associated with the same [StatefulWidget] if that widget has been inserted
-/// into the tree in multiple places. Similarly, if a [StatefulWidget] is
-/// removed from the tree and later inserted in to the tree again, the framework
-/// will call [createState] again to create a fresh [State] object, simplifying
-/// the lifecycle of [State] objects.
+/// 每当[StatefulWidget]膨胀时，框架就会调用[createState]，这意味着如果小部件在多个位置
+/// 插入到树中，那么多个[State]对象可能与同一个[StatefulWidget]相关联。类似地，如果
+/// [StatefulWidget]从树中删除，然后再次插入到树中，框架将再次调用[createState]来创建一
+/// 个新的[State]对象，从而简化[State]对象的生命周期。
 ///
-/// A [StatefulWidget] keeps the same [State] object when moving from one
-/// location in the tree to another if its creator used a [GlobalKey] for its
-/// [key]. Because a widget with a [GlobalKey] can be used in at most one
-/// location in the tree, a widget that uses a [GlobalKey] has at most one
-/// associated element. The framework takes advantage of this property when
-/// moving a widget with a global key from one location in the tree to another
-/// by grafting the (unique) subtree associated with that widget from the old
-/// location to the new location (instead of recreating the subtree at the new
-/// location). The [State] objects associated with [StatefulWidget] are grafted
-/// along with the rest of the subtree, which means the [State] object is reused
-/// (instead of being recreated) in the new location. However, in order to be
-/// eligible for grafting, the widget must be inserted into the new location in
-/// the same animation frame in which it was removed from the old location.
+/// 如果[StatefulWidget]的创建者使用[GlobalKey]作为它的[key]，那么[StatefulWidget]
+/// 在从树中的一个位置移动到另一个位置时将保持相同的[State]对象。因为带有[GlobalKey]的
+/// widget最多只能在树中的一个位置使用，所以使用[GlobalKey]的widget最多只能有一个相关元素。
+/// 当使用全局键的widget从树中的一个位置移动到另一个位置时，框架利用了这个属性(GlobalKey)，
+/// 方法是将与widget关联的(惟一的)子树从旧位置嫁接到新位置(而不是在新位置重新创建子树)。
+/// 与[StatefulWidget]相关联的[State]对象与子树的其余部分一起被嫁接，这意味着[State]
+/// 对象在新位置中被重用(而不是被重新创建)。但是，为了有资格进行嫁接，小部件必须插入到从旧
+/// 位置移除它的动画帧中的新位置。
 ///
-/// ## Performance considerations
+/// ## 性能考虑
 ///
-/// There are two primary categories of [StatefulWidget]s.
+/// [StatefulWidget]有两个主要类别。
 ///
-/// The first is one which allocates resources in [State.initState] and disposes
-/// of them in [State.dispose], but which does not depend on [InheritedWidget]s
-/// or call [State.setState]. Such widgets are commonly used at the root of an
-/// application or page, and communicate with subwidgets via [ChangeNotifier]s,
-/// [Stream]s, or other such objects. Stateful widgets following such a pattern
-/// are relatively cheap (in terms of CPU and GPU cycles), because they are
-/// built once then never update. They can, therefore, have somewhat complicated
-/// and deep build methods.
+/// 第一个是在[State.initState]中分配资源，并以[State.dispose]释放它们。但它不依赖于
+/// [InheritedWidget]s或调用[State.setState]。此类小部件通常用于应用程序或页面的根，
+/// 并通过[ChangeNotifier]s、[Stream]s或其他此类对象与子小部件通信。遵循这种模式的有状态
+/// 小部件相对开销小(就CPU和GPU周期而言)，因为它们只构建一次，永远不会更新。因此，它们可能
+/// 有一些复杂而深入的build方法。
 ///
-/// The second category is widgets that use [State.setState] or depend on
-/// [InheritedWidget]s. These will typically rebuild many times during the
-/// application's lifetime, and it is therefore important to minimize the impact
-/// of rebuilding such a widget. (They may also use [State.initState] or
-/// [State.didChangeDependencies] and allocate resources, but the important part
-/// is that they rebuild.)
+/// 第二类是使用[State.setState]，或依赖[InheritedWidget]s的widgets。这些组件通常会在
+/// 应用程序的生命周期内多次重建，因此将重建此类小部件的影响最小化是非常重要的。(他们也可以
+/// 使用[State.initState]或[State.didChangeDependencies]和分配资源，但重要的是它们进
+/// 行了重建。
 ///
-/// There are several techniques one can use to minimize the impact of
-/// rebuilding a stateful widget:
+/// 可以使用几种技术来最小化重建有状态小部件的影响:
 ///
-///  * Push the state to the leaves. For example, if your page has a ticking
-///    clock, rather than putting the state at the top of the page and
-///    rebuilding the entire page each time the clock ticks, create a dedicated
-///    clock widget that only updates itself.
+///  * 把状态推到叶节点。例如，如果您的页面有一个滴答作响的时钟，而不是将状态放在页面的顶部，
+///    并在每次时钟滴答作响时重新构建整个页面，那么应该创建一个专门的时钟小部件，它只更新自己。
 ///
-///  * Minimize the number of nodes transitively created by the build method and
-///    any widgets it creates. Ideally, a stateful widget would only create a
-///    single widget, and that widget would be a [RenderObjectWidget].
-///    (Obviously this isn't always practical, but the closer a widget gets to
-///    this ideal, the more efficient it will be.)
+///  * 最小化由构建方法及其创建的任何小部件临时创建的节点数量。理想情况下，一个有状态的widget
+///    将只创建一个小部件，而这个小部件将是一个[RenderObjectWidget]。(显然，这并不总是
+///    实际的，但是小部件越接近这个理想，它的效率就越高。)
 ///
-///  * If a subtree does not change, cache the widget that represents that
-///    subtree and re-use it each time it can be used. It is massively more
-///    efficient for a widget to be re-used than for a new (but
-///    identically-configured) widget to be created. Factoring out the stateful
-///    part into a widget that takes a child argument is a common way of doing
-///    this.
+///  * 如果一个子树没有变化，缓存代表该子树的widget，并在每次可以使用它时重用它。重用widget
+///    比创建新的(但配置相同)widget的效率要高得多。将有状态部分分解成带有子参数的小部件是
+///    一种常见的方法。
 ///
-///  * Use `const` widgets where possible. (This is equivalent to caching a
-///    widget and re-using it.)
+///  * 尽可能使用“const”控件。(这相当于缓存一个小部件并重用它。)
 ///
-///  * Avoid changing the depth of any created subtrees or changing the type of
-///    any widgets in the subtree. For example, rather than returning either the
-///    child or the child wrapped in an [IgnorePointer], always wrap the child
-///    widget in an [IgnorePointer] and control the [IgnorePointer.ignoring]
-///    property. This is because changing the depth of the subtree requires
-///    rebuilding, laying out, and painting the entire subtree, whereas just
-///    changing the property will require the least possible change to the
-///    render tree (in the case of [IgnorePointer], for example, no layout or
-///    repaint is necessary at all).
+///  * 避免更改任何创建的子树的深度或更改子树中任何小部件的类型。例如，不是返回子组件或者
+///    包装在[IgnorePointer]中的子组件，而是始终将子组件包装在[IgnorePointer]中并控制
+///    [IgnorePointer.ignoring]属性。这是因为更改子树的深度需要重新构建、布局和绘制整
+///    个子树，而仅仅更改属性就需要对呈现树进行尽可能少的更改(例如，在[IgnorePointer]
+///    的情况下，根本不需要布局或重新绘制)。
 ///
-///  * If the depth must be changed for some reason, consider wrapping the
-///    common parts of the subtrees in widgets that have a [GlobalKey] that
-///    remains consistent for the life of the stateful widget. (The
-///    [KeyedSubtree] widget may be useful for this purpose if no other widget
-///    can conveniently be assigned the key.)
+///  * 如果由于某种原因必须更改深度，可以考虑将具有[GlobalKey]的子树的公共部分封装到
+///    widget中，该小部件在有状态小部件的生命周期内保持一致。(如果没有其他widget可以方便
+///    地分配密钥，那么[KeyedSubtree]widget可能会非常有用。)
 ///
-/// {@tool snippet}
+/// {@tool sample}
 ///
-/// This is a skeleton of a stateful widget subclass called `YellowBird`.
+/// 这是一个名为“YellowBird”的有状态widget子类的框架。
 ///
-/// In this example. the [State] has no actual state. State is normally
-/// represented as private member fields. Also, normally widgets have more
-/// constructor arguments, each of which corresponds to a `final` property.
+/// 在这个例子中。[State]没有实际的状态。State通常表示为私有成员字段。另外，通常widget
+/// 有更多的构造函数参数，每个构造函数参数对应一个“final”属性。
 ///
 /// ```dart
 /// class YellowBird extends StatefulWidget {
@@ -832,11 +795,10 @@ abstract class StatelessWidget extends Widget {
 /// }
 /// ```
 /// {@end-tool}
-/// {@tool snippet}
+/// {@tool sample}
 ///
-/// This example shows the more generic widget `Bird` which can be given a
-/// color and a child, and which has some internal state with a method that
-/// can be called to mutate it:
+/// 这个例子展示了一个更通用的小部件“Bird”，它可以被赋予一个颜色和一个子元素，它有一些内部
+/// 状态，可以调用一个方法来改变它:
 ///
 /// ```dart
 /// class Bird extends StatefulWidget {
@@ -871,72 +833,61 @@ abstract class StatelessWidget extends Widget {
 /// ```
 /// {@end-tool}
 ///
-/// By convention, widget constructors only use named arguments. Named arguments
-/// can be marked as required using [@required]. Also by convention, the first
-/// argument is [key], and the last argument is `child`, `children`, or the
-/// equivalent.
+/// 按照惯例，widget构造函数只使用命名参数。可以使用[@required]将命名参数标记为required。
+/// 同样，按照惯例，第一个参数是[key]，最后一个参数是“child”、“children”或类似的词。
 ///
-/// See also:
+/// 另请参阅:
 ///
-///  * [State], where the logic behind a [StatefulWidget] is hosted.
-///  * [StatelessWidget], for widgets that always build the same way given a
-///    particular configuration and ambient state.
-///  * [InheritedWidget], for widgets that introduce ambient state that can
-///    be read by descendant widgets.
+///  * [State]，其中托管了[StatefulWidget]背后的逻辑.
+///  * [StatelessWidget]，用于在给定特定配置和环境状态时始终以相同方式构建的小部件.
+///  * [InheritedWidget]，用于引入可被后代widget读取的环境状态的widget。
 abstract class StatefulWidget extends Widget {
-  /// Initializes [key] for subclasses.
+  /// 为子类初始化[key]。
   const StatefulWidget({ Key key }) : super(key: key);
 
-  /// Creates a [StatefulElement] to manage this widget's location in the tree.
+  /// 创建一个[StatefulElement]来管理这个小部件在树中的位置。
   ///
-  /// It is uncommon for subclasses to override this method.
+  /// 子类很少重写此方法。
   @override
   StatefulElement createElement() => StatefulElement(this);
 
-  /// Creates the mutable state for this widget at a given location in the tree.
+  /// 在树中的给定位置为这个widget创建可变状态。
   ///
-  /// Subclasses should override this method to return a newly created
-  /// instance of their associated [State] subclass:
+  /// 子类应该覆盖这个方法，以返回一个新创建的实例，其相关的[状态]子类:
   ///
   /// ```dart
   /// @override
   /// _MyState createState() => _MyState();
   /// ```
   ///
-  /// The framework can call this method multiple times over the lifetime of
-  /// a [StatefulWidget]. For example, if the widget is inserted into the tree
-  /// in multiple locations, the framework will create a separate [State] object
-  /// for each location. Similarly, if the widget is removed from the tree and
-  /// later inserted into the tree again, the framework will call [createState]
-  /// again to create a fresh [State] object, simplifying the lifecycle of
-  /// [State] objects.
+  /// 框架可以在[StatefulWidget]的生命周期内多次调用这个方法。例如，如果widget在多个位置
+  /// 插入到树中，框架将为每个位置创建一个单独的[State]对象。类似地，如果widget从树中删除，
+  /// 然后再次插入到树中，框架将再次调用[createState]来创建一个新的[State]对象，从而简化
+  /// [State]对象的生命周期。
   @protected
   State createState();
 }
 
-/// Tracks the lifecycle of [State] objects when asserts are enabled.
+/// 在启用断言时跟踪[State]对象的生命周期。
 enum _StateLifecycle {
-  /// The [State] object has been created. [State.initState] is called at this
-  /// time.
+  /// 已经创建了[State]对象。[State.initState]这时被调用。
   created,
 
-  /// The [State.initState] method has been called but the [State] object is
-  /// not yet ready to build. [State.didChangeDependencies] is called at this time.
+  /// [State.initState]已经被调用，但是[State]对象还没有准备好build。
+  /// [State.didChangeDependencies]此时调用。
   initialized,
 
-  /// The [State] object is ready to build and [State.dispose] has not yet been
-  /// called.
+  /// [State]对象已经准备好build，并且[State]尚未调用[dispose]。
   ready,
 
-  /// The [State.dispose] method has been called and the [State] object is
-  /// no longer able to build.
+  /// [State.dispose]方法已被调用，并且[State]对象不再能够构建。
   defunct,
 }
 
-/// The signature of [State.setState] functions.
+/// [State.setState]方法签名。
 typedef StateSetter = void Function(VoidCallback fn);
 
-/// The logic and internal state for a [StatefulWidget].
+/// [StatefulWidget]的逻辑和内部状态。
 ///
 /// State is information that (1) can be read synchronously when the widget is
 /// built and (2) might change during the lifetime of the widget. It is the
