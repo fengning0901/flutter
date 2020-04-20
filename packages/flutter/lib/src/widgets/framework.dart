@@ -2410,26 +2410,36 @@ abstract class BuildContext {
   DiagnosticsNode describeOwnershipChain(String name);
 }
 
+/// 小部件框架的管理器类。
 /// Manager class for the widgets framework.
 ///
+/// 该类跟踪哪些小部件需要重新构建，并处理应用于整个小部件树的其他任务，例如管理树的非活动
+/// 元素列表，并在调试时在热重新加载期间触发“reassemble”命令。
 /// This class tracks which widgets need rebuilding, and handles other tasks
 /// that apply to widget trees as a whole, such as managing the inactive element
 /// list for the tree and triggering the "reassemble" command when necessary
 /// during hot reload when debugging.
 ///
+/// 主构建所有者通常由[WidgetsBinding]拥有，并与构建/布局/绘图管道的其他部分一起被操作
+/// 系统驱动。
 /// The main build owner is typically owned by the [WidgetsBinding], and is
 /// driven from the operating system along with the rest of the
 /// build/layout/paint pipeline.
 ///
+/// 可以构建其他构建所有者来管理屏幕外的小部件树。
 /// Additional build owners can be built to manage off-screen widget trees.
 ///
+/// 要将构建所有者分配给树，请使用小部件树根元素的[RootRenderObjectElement.assignOwner]
+/// 方法。
 /// To assign a build owner to a tree, use the
 /// [RootRenderObjectElement.assignOwner] method on the root element of the
 /// widget tree.
 class BuildOwner {
+  /// 创建管理小部件的对象。
   /// Creates an object that manages widgets.
   BuildOwner({ this.onBuildScheduled });
 
+  /// 当第一个可构建元素被标记为dirty时，在每个构建遍历调用。
   /// Called on each build pass when the first buildable element is marked
   /// dirty.
   VoidCallback onBuildScheduled;
@@ -2439,28 +2449,39 @@ class BuildOwner {
   final List<Element> _dirtyElements = <Element>[];
   bool _scheduledFlushDirtyElements = false;
 
+  /// 是否需要重新排序[_dirtyElements]，因为在构建过程中有更多的元素变成dirty了。
   /// Whether [_dirtyElements] need to be sorted again as a result of more
   /// elements becoming dirty during the build.
   ///
+  /// 这对于保持[Element._sort]定义的排序顺序是必要的。
   /// This is necessary to preserve the sort order defined by [Element._sort].
   ///
+  /// 当[buildScope]不主动重建小部件树时，该字段被设置为null。
   /// This field is set to null when [buildScope] is not actively rebuilding
   /// the widget tree.
   bool _dirtyElementsNeedsResorting;
 
+  /// 是否[buildScope]正在积极地重建小部件树。
   /// Whether [buildScope] is actively rebuilding the widget tree.
   ///
+  /// [scheduleBuildFor]应该只在该值为真时调用。
   /// [scheduleBuildFor] should only be called when this value is true.
   bool get _debugIsInBuildScope => _dirtyElementsNeedsResorting != null;
 
+  /// 负责焦点树的对象。
   /// The object in charge of the focus tree.
   ///
+  /// 很少直接使用。相反，可以考虑使用[FocusScope]。获取给定[BuildContext]的
+  /// [FocusScopeNode]。
   /// Rarely used directly. Instead, consider using [FocusScope.of] to obtain
   /// the [FocusScopeNode] for a given [BuildContext].
   ///
+  /// 更多细节请参见[FocusManager]。
   /// See [FocusManager] for more details.
   FocusManager focusManager = FocusManager();
 
+  /// 将元素添加到dirty元素列表中，以便在[WidgetsBinding.drawFrame]调用
+  /// [buildScope]时重建。
   /// Adds an element to the dirty elements list so that it will be rebuilt
   /// when [WidgetsBinding.drawFrame] calls [buildScope].
   void scheduleBuildFor(Element element) {
@@ -2519,16 +2540,20 @@ class BuildOwner {
   int _debugStateLockLevel = 0;
   bool get _debugStateLocked => _debugStateLockLevel > 0;
 
+  /// 此小部件树是否处于构建阶段。
   /// Whether this widget tree is in the build phase.
   ///
+  /// 仅在启用断言时有效。
   /// Only valid when asserts are enabled.
   bool get debugBuilding => _debugBuilding;
   bool _debugBuilding = false;
   Element _debugCurrentBuildTarget;
 
+  /// 建立一个禁用[State.setState]的作用域，并调用给定的“回调”。
   /// Establishes a scope in which calls to [State.setState] are forbidden, and
   /// calls the given `callback`.
   ///
+  /// 该机制用于确保，例如，[State.dispose]不调用[State.setState]。
   /// This mechanism is used to ensure that, for instance, [State.dispose] does
   /// not call [State.setState].
   void lockState(void callback()) {
@@ -2549,27 +2574,39 @@ class BuildOwner {
     assert(_debugStateLockLevel >= 0);
   }
 
+  /// 建立用于更新小部件树的作用域，并调用给定的“回调”(如果有的话)。然后，使用
+  /// [scheduleBuildFor]按深度顺序构建所有标记为dirty的元素。
   /// Establishes a scope for updating the widget tree, and calls the given
   /// `callback`, if any. Then, builds all the elements that were marked as
   /// dirty using [scheduleBuildFor], in depth order.
   ///
+  /// 这种机制可以防止构建方法过渡地要求其他构建方法运行，从而潜在地导致无限循环。
   /// This mechanism prevents build methods from transitively requiring other
   /// build methods to run, potentially causing infinite loops.
   ///
+  /// 脏列表在' callback '返回后处理，使用[scheduleBuildFor]按深度顺序构建所有标记为
+  /// dirty的元素。如果元素在此方法运行时被标记为dirty，则它们必须比“context”节点更深，
+  /// 并且比此遍历中以前构建的任何节点更深。
   /// The dirty list is processed after `callback` returns, building all the
   /// elements that were marked as dirty using [scheduleBuildFor], in depth
   /// order. If elements are marked as dirty while this method is running, they
   /// must be deeper than the `context` node, and deeper than any
   /// previously-built node in this pass.
   ///
+  /// 若要在不执行任何其他工作的情况下刷新当前脏列表，可以不使用回调调用此函数。这就是框架在
+  /// [WidgetsBinding.drawFrame]中的每一帧所做的事情。
   /// To flush the current dirty list without performing any other work, this
   /// function can be called with no callback. This is what the framework does
   /// each frame, in [WidgetsBinding.drawFrame].
   ///
+  /// 一次只能激活一个[buildScope]。
   /// Only one [buildScope] can be active at a time.
   ///
+  /// [buildScope]也意味着[lockState]范围。
   /// A [buildScope] implies a [lockState] scope as well.
   ///
+  /// 要在每次调用此方法时打印控制台消息，请将[debugPrintBuildScope]设置为true。
+  /// 这在调试小部件没有被标记为dirty的问题时很有用，或者经常被标记为dirty的问题。
   /// To print a console message every time this method is called, set
   /// [debugPrintBuildScope] to true. This is useful when debugging problems
   /// involving widgets not getting marked dirty, or getting marked dirty too
@@ -2694,14 +2731,18 @@ class BuildOwner {
     _debugElementsThatWillNeedToBeRebuiltDueToGlobalKeyShenanigans?.remove(node);
   }
 
+  /// 通过卸载任何不再活动的元素来完成元素构建。
   /// Complete the element build pass by unmounting any elements that are no
   /// longer active.
   ///
+  /// 这是由[WidgetsBinding.drawFrame]调用的。
   /// This is called by [WidgetsBinding.drawFrame].
   ///
+  /// 在调试模式下，这还会运行一些完备性检查，例如检查重复的全局键。
   /// In debug mode, this also runs some sanity checks, for example checking for
   /// duplicate global keys.
   ///
+  /// 在当前调用堆栈展开后，将运行一个微任务，通知侦听器有关全局键的更改。
   /// After the current call stack unwinds, a microtask that notifies listeners
   /// about changes to global keys will run.
   void finalizeTree() {
@@ -2804,6 +2845,8 @@ class BuildOwner {
     }
   }
 
+  /// 导致根在给定[Element]的整个子树被完全重新构建。当应用程序代码更改并正在热加载时，开
+  /// 发工具将使用它，以使小部件树获得任何更改的实现。
   /// Cause the entire subtree rooted at the given [Element] to be entirely
   /// rebuilt. This is used by development tools when the application code has
   /// changed and is being hot-reloaded, to cause the widget tree to pick up any
