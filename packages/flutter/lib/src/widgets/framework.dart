@@ -1297,52 +1297,43 @@ abstract class State<T extends StatefulWidget> with Diagnosticable {
   }
 }
 
-/// A widget that has a child widget provided to it, instead of building a new
-/// widget.
+/// 被提供子小部件的小部件，而不是构建新的小部件。
 ///
-/// Useful as a base class for other widgets, such as [InheritedWidget] and
-/// [ParentDataWidget].
+/// 作为其他小部件(如[InheritedWidget]和[ParentDataWidget])的基类非常有用。
 ///
-/// See also:
+/// 另请参阅:
 ///
-///  * [InheritedWidget], for widgets that introduce ambient state that can
-///    be read by descendant widgets.
-///  * [ParentDataWidget], for widgets that populate the
-///    [RenderObject.parentData] slot of their child's [RenderObject] to
-///    configure the parent widget's layout.
-///  * [StatefulWidget] and [State], for widgets that can build differently
-///    several times over their lifetime.
-///  * [StatelessWidget], for widgets that always build the same way given a
-///    particular configuration and ambient state.
-///  * [Widget], for an overview of widgets in general.
+///  * [InheritedWidget]，用于引入可被后代widget读取的环境状态的小部件。
+///  * [ParentDataWidget]，用于填充其子级的[RenderObject]的
+///    [RenderObject.parentData]槽的小部件，以配置父小部件的布局。
+///  * [StatefulWidget]和[State]，用于在其生命周期内多次构建不同的小部件。
+///  * [StatelessWidget]，用于在给定特定配置和环境状态时始终以相同方式构建的小部件。
+///  * [Widget]，用于对Widget的一般概述。
 abstract class ProxyWidget extends Widget {
-  /// Creates a widget that has exactly one child widget.
+  /// 创建只有一个子widget的widget。
   const ProxyWidget({ Key key, @required this.child }) : super(key: key);
 
-  /// The widget below this widget in the tree.
+  /// 树中本widget之下的widget。
   ///
   /// {@template flutter.widgets.child}
-  /// This widget can only have one child. To lay out multiple children, let this
-  /// widget's child be a widget such as [Row], [Column], or [Stack], which have a
-  /// `children` property, and then provide the children to that widget.
+  /// 这个widget只能有一个孩子。要布局多个子组件，需要让这个widget的子widget是一个具有
+  /// 'children'属性的widget，如[Row]、[Column]或[Stack]，然后将子组件提供给本widget。
   /// {@endtemplate}
   final Widget child;
 }
 
-/// Base class for widgets that hook [ParentData] information to children of
-/// [RenderObjectWidget]s.
+/// 将[ParentData]信息与[RenderObjectWidget]的子组件挂钩的widget的基类。
 ///
-/// This can be used to provide per-child configuration for
-/// [RenderObjectWidget]s with more than one child. For example, [Stack] uses
-/// the [Positioned] parent data widget to position each child.
+/// 这可以用于为[RenderObjectWidget]的多个子节点提供每个子节点的配置。例如，[Stack]
+/// 使用[Positioned]父数据widget来定位每个子节点。
 ///
-/// A [ParentDataWidget] is specific to a particular kind of [ParentData]. That
-/// class is `T`, the [ParentData] type argument.
+/// [ParentDataWidget]是特定于特定类型的[ParentData]的。这个类是' T '，是[ParentData]
+/// 类型的参数。
 ///
 /// {@tool snippet}
 ///
-/// This example shows how you would build a [ParentDataWidget] to configure a
-/// `FrogJar` widget's children by specifying a [Size] for each one.
+/// 这个示例展示了如何构建一个[ParentDataWidget]来为每一个' FrogJar '小部件的子部件指定
+/// 一个[Size]。
 ///
 /// ```dart
 /// class FrogSize extends ParentDataWidget<FrogJarParentData> {
@@ -1372,45 +1363,39 @@ abstract class ProxyWidget extends Widget {
 /// ```
 /// {@end-tool}
 ///
-/// See also:
+/// 另请参阅:
 ///
-///  * [RenderObject], the superclass for layout algorithms.
-///  * [RenderObject.parentData], the slot that this class configures.
-///  * [ParentData], the superclass of the data that will be placed in
-///    [RenderObject.parentData] slots. The `T` type parameter for
-///    [ParentDataWidget] is a [ParentData].
-///  * [RenderObjectWidget], the class for widgets that wrap [RenderObject]s.
-///  * [StatefulWidget] and [State], for widgets that can build differently
-///    several times over their lifetime.
+///  * [RenderObject]，布局算法的父类。
+///  * [RenderObject.parentData]，这个类配置的槽。
+///  * [ParentData]，将被放置在[RenderObject.parentData]槽中的数据的超类。
+///    [ParentDataWidget]的' T '类型参数是一个[ParentData]。
+///  * [RenderObjectWidget]，用于封装[RenderObject]s的小部件的类。
+///  * [StatefulWidget]和[State]，用于在其生命周期内多次构建不同的小部件。
 abstract class ParentDataWidget<T extends ParentData> extends ProxyWidget {
-  /// Abstract const constructor. This constructor enables subclasses to provide
-  /// const constructors so that they can be used in const expressions.
+  /// abstract const 构造函数。这个构造函数允许子类提供const构造函数，以便可以在const
+  /// 表达式中使用它们。
   const ParentDataWidget({ Key key, Widget child })
     : super(key: key, child: child);
 
   @override
   ParentDataElement<T> createElement() => ParentDataElement<T>(this);
 
-  /// Checks if this widget can apply its parent data to the provided
-  /// `renderObject`.
+  /// 检查这个小部件是否可以将它的父数据应用到提供的“renderObject”中。
   ///
-  /// The [RenderObject.parentData] of the provided `renderObject` is
-  /// typically set up by an ancestor [RenderObjectWidget] of the type returned
-  /// by [debugTypicalAncestorWidgetClass].
+  /// [RenderObject.parentData]提供的“renderObject”的通常是由
+  /// [debugtypicalorwidgetclass]返回的类型的祖先[RenderObjectWidget]设置的。
   ///
-  /// This is called just before [applyParentData] is invoked with the same
-  /// [RenderObject] provided to that method.
+  /// 本方法在[applyParentData]调用之前调用的，并且与[applyParentData]使用的是同一个
+  /// [RenderObject]。
   bool debugIsValidRenderObject(RenderObject renderObject) {
     assert(T != dynamic);
     assert(T != ParentData);
     return renderObject.parentData is T;
   }
 
-  /// The [RenderObjectWidget] that is typically used to set up the [ParentData]
-  /// that [applyParentData] will write to.
+  /// 通常用于设置[applyParentData]将写入的[ParentData]的[RenderObjectWidget]。
   ///
-  /// This is only used in error messages to tell users what widget typically
-  /// wraps this ParentDataWidget.
+  /// 这只在错误消息中使用，告诉用户通常什么widget包装这个ParentDataWidget。
   Type get debugTypicalAncestorWidgetClass;
 
   Iterable<DiagnosticsNode> _debugDescribeIncorrectParentDataType({
@@ -1448,37 +1433,28 @@ abstract class ParentDataWidget<T extends ParentData> extends ProxyWidget {
     }
   }
 
-  /// Write the data from this widget into the given render object's parent data.
+  /// 将来自此小部件的数据写入给定呈现对象的父数据。
   ///
-  /// The framework calls this function whenever it detects that the
-  /// [RenderObject] associated with the [child] has outdated
-  /// [RenderObject.parentData]. For example, if the render object was recently
-  /// inserted into the render tree, the render object's parent data might not
-  /// match the data in this widget.
+  /// 当框架检测到与[child]关联的[RenderObject]有已经过时的[RenderObject.parentData]
+  /// 时，就会调用这个函数。例如，如果渲染对象最近被插入到渲染树中，则渲染对象的父数据可能
+  /// 与此小部件中的数据不匹配。
   ///
-  /// Subclasses are expected to override this function to copy data from their
-  /// fields into the [RenderObject.parentData] field of the given render
-  /// object. The render object's parent is guaranteed to have been created by a
-  /// widget of type `T`, which usually means that this function can assume that
-  /// the render object's parent data object inherits from a particular class.
+  /// 子类需要重写这个函数来将数据从它们的字段复制到给定的render对象的
+  /// [RenderObject.parentData]中。render object的父对象需要保证是类型为“T”的widget，
+  /// 这通常意味着这个函数可以假定render对象的父数据对象继承自一个特定的类。
   ///
-  /// If this function modifies data that can change the parent's layout or
-  /// painting, this function is responsible for calling
-  /// [RenderObject.markNeedsLayout] or [RenderObject.markNeedsPaint] on the
-  /// parent, as appropriate.
+  /// 如果这个函数修改了可以改变父类layout或painting的数据，那么这个函数将负责调用父级的
+  /// [RenderObject.markNeedsPaint]或[RenderObject.markNeedsLayout]。
   @protected
   void applyParentData(RenderObject renderObject);
 
-  /// Whether the [ParentDataElement.applyWidgetOutOfTurn] method is allowed
-  /// with this widget.
+  /// 本widget是否被允许使用[ParentDataElement.applyWidgetOutOfTurn]方法
   ///
-  /// This should only return true if this widget represents a [ParentData]
-  /// configuration that will have no impact on the layout or paint phase.
+  /// 只有当这个widget表示对布局或绘制阶段没有影响的[ParentData]配置时，才会返回true。
   ///
-  /// See also:
+  /// 另请参阅:
   ///
-  ///  * [ParentDataElement.applyWidgetOutOfTurn], which verifies this in debug
-  ///    mode.
+  ///  * [ParentDataElement.applyWidgetOutOfTurn]，本方法在调试模式下验证它。
   @protected
   bool debugCanApplyOutOfTurn() => false;
 }
