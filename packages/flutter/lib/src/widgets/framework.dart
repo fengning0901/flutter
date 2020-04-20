@@ -1538,74 +1538,62 @@ abstract class InheritedWidget extends ProxyWidget {
   bool updateShouldNotify(covariant InheritedWidget oldWidget);
 }
 
-/// RenderObjectWidgets provide the configuration for [RenderObjectElement]s,
-/// which wrap [RenderObject]s, which provide the actual rendering of the
-/// application.
+/// RenderObjectWidgets提供了[RenderObjectElement]s的配置，它封装了[RenderObject]s，
+/// 后者提供了应用程序的实际呈现。
 abstract class RenderObjectWidget extends Widget {
-  /// Abstract const constructor. This constructor enables subclasses to provide
-  /// const constructors so that they can be used in const expressions.
+  /// abstract const构造函数。这个构造函数允许子类提供const构造函数，以便可以在const
+  /// 表达式中使用它们。
   const RenderObjectWidget({ Key key }) : super(key: key);
 
-  /// RenderObjectWidgets always inflate to a [RenderObjectElement] subclass.
+  /// RenderObjectWidgets总是膨胀为一个[RenderObjectElement]子类。
   @override
   RenderObjectElement createElement();
 
-  /// Creates an instance of the [RenderObject] class that this
-  /// [RenderObjectWidget] represents, using the configuration described by this
-  /// [RenderObjectWidget].
+  /// 使用这个[RenderObjectWidget]所描述的配置创建这个[RenderObject]类的一个实例。
   ///
-  /// This method should not do anything with the children of the render object.
-  /// That should instead be handled by the method that overrides
-  /// [RenderObjectElement.mount] in the object rendered by this object's
-  /// [createElement] method. See, for example,
-  /// [SingleChildRenderObjectElement.mount].
+  /// 此方法不应该对render对象的子对象执行任何操作。而应该覆盖由该对象的[createElement]方法
+  /// 所渲染的对象中的[RenderObjectElement.mount]的方法来处理。例如，参见
+  /// [SingleChildRenderObjectElement.mount]。
   @protected
   RenderObject createRenderObject(BuildContext context);
 
-  /// Copies the configuration described by this [RenderObjectWidget] to the
-  /// given [RenderObject], which will be of the same type as returned by this
-  /// object's [createRenderObject].
+  /// 将这个[RenderObjectWidget]描述的配置复制到给定的[RenderObject]，它将与这个对象的
+  /// [createRenderObject]返回的类型相同。
   ///
-  /// This method should not do anything to update the children of the render
-  /// object. That should instead be handled by the method that overrides
-  /// [RenderObjectElement.update] in the object rendered by this object's
-  /// [createElement] method. See, for example,
-  /// [SingleChildRenderObjectElement.update].
+  /// 这个方法不应该做任何事情来更新renderobject的子对象。而应该由该对象的
+  /// [createElement]方法呈现的对象中覆盖[RenderObjectElement.update]的方法来处理。
+  /// 比如[SingleChildRenderObjectElement.update].
   @protected
   void updateRenderObject(BuildContext context, covariant RenderObject renderObject) { }
 
-  /// A render object previously associated with this widget has been removed
-  /// from the tree. The given [RenderObject] will be of the same type as
-  /// returned by this object's [createRenderObject].
+  /// 先前与此小部件关联的渲染对象已从树中删除。给定的[RenderObject]与该对象的
+  /// [createRenderObject]返回的类型相同。
   @protected
   void didUnmountRenderObject(covariant RenderObject renderObject) { }
 }
 
-/// A superclass for RenderObjectWidgets that configure RenderObject subclasses
-/// that have no children.
+/// RenderObjectWidget的超类，配置没有子对象的RenderObject子类。
 abstract class LeafRenderObjectWidget extends RenderObjectWidget {
-  /// Abstract const constructor. This constructor enables subclasses to provide
-  /// const constructors so that they can be used in const expressions.
+  /// abstract const构造函数。这个构造函数允许子类提供const构造函数，以便可以在const
+  /// 表达式中使用它们。
   const LeafRenderObjectWidget({ Key key }) : super(key: key);
 
   @override
   LeafRenderObjectElement createElement() => LeafRenderObjectElement(this);
 }
 
-/// A superclass for [RenderObjectWidget]s that configure [RenderObject] subclasses
-/// that have a single child slot. (This superclass only provides the storage
-/// for that child, it doesn't actually provide the updating logic.)
+/// 一个配置[RenderObject]子类的[RenderObjectWidget]s的超类，它有一个单独的子槽。
+/// (这个超类只提供了这个子类的存储，它实际上并不提供更新逻辑。)
 ///
-/// Typically, the render object assigned to this widget will make use of
-/// [RenderObjectWithChildMixin] to implement a single-child model. The mixin
-/// exposes a [RenderObjectWithChildMixin.child] property that allows
-/// retrieving the render object belonging to the [child] widget.
+/// 通常，分配给这个widget的渲染对象将使用[RenderObjectWithChildMixin]来实现一个子模型。
+/// mixin公开了一个[RenderObjectWithChildMixin]属性，该属性允许检索属于[child]小部件的
+/// 渲染对象。
 abstract class SingleChildRenderObjectWidget extends RenderObjectWidget {
-  /// Abstract const constructor. This constructor enables subclasses to provide
-  /// const constructors so that they can be used in const expressions.
+  /// abstract const构造函数。这个构造函数允许子类提供const构造函数，以便可以在const
+  /// 表达式中使用它们。
   const SingleChildRenderObjectWidget({ Key key, this.child }) : super(key: key);
 
-  /// The widget below this widget in the tree.
+  /// 树中本widget的子widget。
   ///
   /// {@macro flutter.widgets.child}
   final Widget child;
@@ -1614,23 +1602,32 @@ abstract class SingleChildRenderObjectWidget extends RenderObjectWidget {
   SingleChildRenderObjectElement createElement() => SingleChildRenderObjectElement(this);
 }
 
+/// 一个[RenderObjectWidget]s的超类，它用于配置[RenderObject]子类，这些子类只有一个子
+/// 类列表。(这个超类只提供了该子列表的存储，它实际上并不提供更新逻辑。)
 /// A superclass for [RenderObjectWidget]s that configure [RenderObject] subclasses
 /// that have a single list of children. (This superclass only provides the
 /// storage for that child list, it doesn't actually provide the updating
 /// logic.)
 ///
+/// 这将返回一个混合在[ContainerRenderObjectMixin]中的[RenderObject]，它提供了访问
+/// 容器呈现对象(属于[children]小部件的呈现对象)的子对象所需的功能。通常，这是一个带有
+/// [RenderBoxContainerDefaultsMixin]的[RenderBox]。
 /// This will return a [RenderObject] mixing in [ContainerRenderObjectMixin],
 /// which provides the necessary functionality to visit the children of the
 /// container render object (the render object belonging to the [children] widgets).
 /// Typically, this is a [RenderBox] with [RenderBoxContainerDefaultsMixin].
 ///
+/// 另请参阅:
 /// See also:
 ///
+///  * 使用[MultiChildRenderObjectWidget]的[Stack].
 ///  * [Stack], which uses [MultiChildRenderObjectWidget].
+///  * [RenderStack]，用于关联渲染对象的一个示例实现。
 ///  * [RenderStack], for an example implementation of the associated render object.
 abstract class MultiChildRenderObjectWidget extends RenderObjectWidget {
-  /// Initializes fields for subclasses.
+  /// 初始化子类的字段。
   ///
+  /// [children]参数不能为空，并且不能包含任何空对象.
   /// The [children] argument must not be null and must not contain any null
   /// objects.
   MultiChildRenderObjectWidget({ Key key, this.children = const <Widget>[] })
@@ -1647,13 +1644,19 @@ abstract class MultiChildRenderObjectWidget extends RenderObjectWidget {
       }()), // https://github.com/dart-lang/sdk/issues/29276
       super(key: key);
 
+  /// 树种本widget下的widgets。
   /// The widgets below this widget in the tree.
   ///
+  /// 如果这个列表将发生变化，通常明智的做法是在每个子窗口小部件上放置一个[Key]，以便框架
+  /// 能够将旧配置与新配置匹配起来，并维护底层的渲染对象。
   /// If this list is going to be mutated, it is usually wise to put a [Key] on
   /// each of the child widgets, so that the framework can match old
   /// configurations to new configurations and maintain the underlying render
   /// objects.
   ///
+  /// 同样，在Flutter中，一个[Widget]是不可变的，所以直接修改[children]，例如
+  /// ‘someMultiChildRenderObjectWidget.children.add(…)’，或者像下面的示例代码一样，
+  /// 会导致不正确的行为。无论何时修改子列表，都应该提供一个新的list对象。
   /// Also, a [Widget] in Flutter is immutable, so directly modifying the
   /// [children] such as `someMultiChildRenderObjectWidget.children.add(...)` or
   /// as the example code below will result in incorrect behaviors. Whenever the
@@ -1680,6 +1683,7 @@ abstract class MultiChildRenderObjectWidget extends RenderObjectWidget {
   /// }
   /// ```
   ///
+  /// 下面的代码纠正了上面提到的问题。
   /// The following code corrects the problem mentioned above.
   ///
   /// ```dart
