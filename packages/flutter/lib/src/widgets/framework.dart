@@ -1729,6 +1729,7 @@ class _InactiveElements {
   final Set<Element> _elements = HashSet<Element>();
 
   void _unmount(Element element) {
+    /// 在状态是不活跃的时候进行unmount
     assert(element._debugLifecycleState == _ElementLifecycle.inactive);
     assert(() {
       if (debugPrintGlobalKeyedWidgetLifecycle) {
@@ -1737,19 +1738,25 @@ class _InactiveElements {
       }
       return true;
     }());
+    /// unmount所有的子widget
     element.visitChildren((Element child) {
       assert(child._parent == element);
       _unmount(child);
     });
+    /// 再unmount自己
     element.unmount();
+    /// 这时候element的状态应该是defunct
     assert(element._debugLifecycleState == _ElementLifecycle.defunct);
   }
 
   void _unmountAll() {
+    /// 在加锁状态下运行
     _locked = true;
     final List<Element> elements = _elements.toList()..sort(Element._sort);
+    /// 清空elements列表
     _elements.clear();
     try {
+      /// 从尾部开始进行unmount
       elements.reversed.forEach(_unmount);
     } finally {
       assert(_elements.isEmpty);
@@ -1757,6 +1764,7 @@ class _InactiveElements {
     }
   }
 
+  /// 递归对element以及其子element进行deactivate
   static void _deactivateRecursively(Element element) {
     assert(element._debugLifecycleState == _ElementLifecycle.active);
     element.deactivate();
@@ -1768,12 +1776,15 @@ class _InactiveElements {
     }());
   }
 
+  /// 添加element
   void add(Element element) {
     assert(!_locked);
     assert(!_elements.contains(element));
     assert(element._parent == null);
+    /// 如果当前element活跃状态，需要先进入不活跃状态
     if (element._active)
       _deactivateRecursively(element);
+    /// 在_elements中加入element
     _elements.add(element);
   }
 
@@ -1781,7 +1792,9 @@ class _InactiveElements {
     assert(!_locked);
     assert(_elements.contains(element));
     assert(element._parent == null);
+    /// 从elements中移除element
     _elements.remove(element);
+    /// 需要保证element不活跃
     assert(!element._active);
   }
 
@@ -1795,29 +1808,47 @@ class _InactiveElements {
   }
 }
 
+/// [BuildContext.visitChildElements]回调方法的签名。
 /// Signature for the callback to [BuildContext.visitChildElements].
 ///
+/// 参数是被访问的子节点。
 /// The argument is the child being visited.
 ///
+/// 在本回调中重新调用`element.visitChildElements`是安全的。
 /// It is safe to call `element.visitChildElements` reentrantly within
 /// this callback.
 typedef ElementVisitor = void Function(Element element);
 
+/// 在widget树种定位widget的手柄。
 /// A handle to the location of a widget in the widget tree.
 ///
+/// 这个类提供了一系列方法，这些方法可以在[StatelessWidget.build]方法和State的方法中
+/// 调用。
 /// This class presents a set of methods that can be used from
 /// [StatelessWidget.build] methods and from methods on [State] objects.
 ///
+/// [BuildContext]对象被传递给[WidgetBuilder]函数(比如[StatelessWidget.build])，
+/// 并且可以从[State.context]获取。一些静态函数(如[showDialog]， [Theme.of]等等)也
+/// 可以使用构建上下文，以便它们可以代表调用的小部件，或者获取特定于给定上下文的数据。
 /// [BuildContext] objects are passed to [WidgetBuilder] functions (such as
 /// [StatelessWidget.build]), and are available from the [State.context] member.
 /// Some static functions (e.g. [showDialog], [Theme.of], and so forth) also
 /// take build contexts so that they can act on behalf of the calling widget, or
 /// obtain data specifically for the given context.
 ///
+/// 每个小部件都有自己的[BuildContext]，它成为由[StatelessWidget.build]或
+/// [State.build]方法返回的小部件的父组件。(类似地，[RenderObjectWidget]s的任何子元素
+/// 的父元素)
 /// Each widget has its own [BuildContext], which becomes the parent of the
 /// widget returned by the [StatelessWidget.build] or [State.build] function.
 /// (And similarly, the parent of any children for [RenderObjectWidget]s.)
 ///
+/// 特别是，这意味着在一个构建方法中，构建方法的小部件的构建上下文与该构建方法返回的小部件
+/// 的构建上下文是不同的。这可能会导致一些棘手的情况。例如，[Theme.of(context)]查找给定
+/// 构建上下文的最近的封闭[Theme]。如果小部件Q的构建方法在其返回的小部件树中包含一个
+/// [Theme]，并尝试使用[Theme.of]传递它自己的上下文时，Q的构建方法将不会找到那个
+/// [Theme]对象。相反，它将找到小部件q的祖先。如果需要返回树的子部分的构建上下文，那么可以
+/// 使用一个[Builder]小部件:将构建上下文传递给[Builder]。回调将是[builder]本身的回调。
 /// In particular, this means that within a build method, the build context of
 /// the widget of the build method is not the same as the build context of the
 /// widgets returned by that build method. This can lead to some tricky cases.
@@ -1830,6 +1861,9 @@ typedef ElementVisitor = void Function(Element element);
 /// widget can be used: the build context passed to the [Builder.builder]
 /// callback will be that of the [Builder] itself.
 ///
+/// 例如，在下面的代码片段中，[ScaffoldState.showSnackBar]方法是在构建方法本身创建的
+/// [Scaffold]小部件上调用的。如果没有使用[Builder]，而是使用了构建方法本身的
+/// ' context '参数，那么就不会找到[Scaffold]和[Scaffold]。函数将返回null。
 /// For example, in the following snippet, the [ScaffoldState.showSnackBar]
 /// method is called on the [Scaffold] widget that the build method itself
 /// creates. If a [Builder] had not been used, and instead the `context`
@@ -1859,23 +1893,31 @@ typedef ElementVisitor = void Function(Element element);
 ///   }
 /// ```
 ///
+/// 当小部件在树中移动时，特定小部件的[BuildContext]可以随时间改变位置。因此，在执行单个
+/// 同步函数之后，不应该缓存该类上方法返回的值。
 /// The [BuildContext] for a particular widget can change location over time as
 /// the widget is moved around the tree. Because of this, values returned from
 /// the methods on this class should not be cached beyond the execution of a
 /// single synchronous function.
 ///
+/// [BuildContext]对象实际上是[Element]对象。[BuildContext]接口用于阻止直接操作[Element]对象。
 /// [BuildContext] objects are actually [Element] objects. The [BuildContext]
 /// interface is used to discourage direct manipulation of [Element] objects.
 abstract class BuildContext {
+  /// 本[BuildContext]的当前配置。
   /// The current configuration of the [Element] that is this [BuildContext].
   Widget get widget;
 
+  /// 这个上下文的[BuildOwner]。[BuildOwner]负责管理这个上下文的渲染管道。
   /// The [BuildOwner] for this context. The [BuildOwner] is in charge of
   /// managing the rendering pipeline for this context.
   BuildOwner get owner;
 
-  /// Whether the [widget] is currently updating the widget or render tree.
+  /// [widget]当前是正在更新widget还是在渲染树。
   ///
+  /// 对于[StatefulWidget]s和[StatelessWidget]s，当它们各自的构建方法执行时，此标志为
+  /// true。[RenderObjectWidget]s在创建或配置其关联的[RenderObject]s时将其设置为true。
+  /// 其他[Widget]类型可以将其设置为true，用于概念上类似的生命周期阶段。
   /// For [StatefulWidget]s and [StatelessWidget]s this flag is true while
   /// their respective build methods are executing.
   /// [RenderObjectWidget]s set this to true while creating or configuring their
@@ -1883,62 +1925,86 @@ abstract class BuildContext {
   /// Other [Widget] types may set this to true for conceptually similar phases
   /// of their lifecycle.
   ///
+  /// 如果当前为true，[widget]可以通过调用[dependOnInheritedElement]或
+  /// [dependOnInheritedWidgetOfExactType]来建立对[InheritedWidget]的依赖。
   /// When this is true, it is safe for [widget] to establish a dependency to an
   /// [InheritedWidget] by calling [dependOnInheritedElement] or
   /// [dependOnInheritedWidgetOfExactType].
   ///
-  /// Accessing this flag in release mode is not valid.
+  /// 在release模式中访问此标志无效。
   bool get debugDoingBuild;
 
+  /// 小部件的当前[RenderObject]。如果小部件是一个[RenderObjectWidget]，这就是小部件
+  /// 为自己创建的呈现对象。否则，它就是第一个子类[RenderObjectWidget]的渲染对象。
   /// The current [RenderObject] for the widget. If the widget is a
   /// [RenderObjectWidget], this is the render object that the widget created
   /// for itself. Otherwise, it is the render object of the first descendant
   /// [RenderObjectWidget].
   ///
+  /// 此方法仅在构建阶段完成后返回有效的结果。因此，从构建方法调用它是无效的。它只能从交互
+  /// 事件处理程序(例如手势回调)或布局或绘制回调中调用。
   /// This method will only return a valid result after the build phase is
   /// complete. It is therefore not valid to call this from a build method.
   /// It should only be called from interaction event handlers (e.g.
   /// gesture callbacks) or layout or paint callbacks.
   ///
+  /// 如果渲染对象是[RenderBox]，这是常见的情况，那么渲染对象的大小可以从[size] getter
+  /// 中获得。这只在布局阶段之后有效，因此应该只从paint回调或交互事件处理程序(例如手势回调)
+  /// 进行检查。
   /// If the render object is a [RenderBox], which is the common case, then the
   /// size of the render object can be obtained from the [size] getter. This is
   /// only valid after the layout phase, and should therefore only be examined
   /// from paint callbacks or interaction event handlers (e.g. gesture
   /// callbacks).
   ///
+  /// 有关框架的不同阶段的详细信息，请参见[WidgetsBinding.drawFrame]中的讨论。
   /// For details on the different phases of a frame, see the discussion at
   /// [WidgetsBinding.drawFrame].
   ///
+  /// 在树的深度中调用这个方法理论上比较高开销(O(N))，但在实践中通常开销比较低，因为树通常
+  /// 有许多渲染对象，因此到最近的呈现对象的距离通常很短。
   /// Calling this method is theoretically relatively expensive (O(N) in the
   /// depth of the tree), but in practice is usually cheap because the tree
   /// usually has many render objects and therefore the distance to the nearest
   /// render object is usually short.
   RenderObject findRenderObject();
 
+  /// [findRenderObject]返回的[RenderBox]的大小。
   /// The size of the [RenderBox] returned by [findRenderObject].
   ///
+  /// 此getter仅在布局阶段完成后返回有效的结果。因此，从构建方法调用它是无效的。它只能从
+  /// paint回调或交互事件处理程序(例如手势回调)调用。
   /// This getter will only return a valid result after the layout phase is
   /// complete. It is therefore not valid to call this from a build method.
   /// It should only be called from paint callbacks or interaction event
   /// handlers (e.g. gesture callbacks).
   ///
+  /// 有关框架的不同阶段的详细信息，请参见[WidgetsBinding.drawFrame]中的讨论。
   /// For details on the different phases of a frame, see the discussion at
   /// [WidgetsBinding.drawFrame].
   ///
+  /// 只有当[findRenderObject]实际返回一个[RenderBox]时，这个getter才会返回一个有效的
+  /// 结果。如果[findRenderObject]返回的渲染对象不是[RenderBox]的子类型(例如，
+  /// [RenderView])，这个getter将在checked模式下抛出一个异常，并在release模式下返回
+  /// null。
   /// This getter will only return a valid result if [findRenderObject] actually
   /// returns a [RenderBox]. If [findRenderObject] returns a render object that
   /// is not a subtype of [RenderBox] (e.g., [RenderView]), this getter will
   /// throw an exception in checked mode and will return null in release mode.
   ///
+  /// 在树的深度中调用这个方法理论上比较高开销(O(N))，但在实践中通常开销比较低，因为树通常
+  /// 有许多渲染对象，因此到最近的呈现对象的距离通常很短。
   /// Calling this getter is theoretically relatively expensive (O(N) in the
   /// depth of the tree), but in practice is usually cheap because the tree
   /// usually has many render objects and therefore the distance to the nearest
   /// render object is usually short.
   Size get size;
 
+  /// 向[ancestor]注册此构建上下文，以便在[ancestor]的小部件更改此构建上下文时重新构建。
   /// Registers this build context with [ancestor] such that when
   /// [ancestor]'s widget changes this build context is rebuilt.
   ///
+  /// 过期。请使用[dependOnInheritedElement]。
   /// This method is deprecated. Please use [dependOnInheritedElement] instead.
   // TODO(a14n): Remove this when it goes to stable, https://github.com/flutter/flutter/pull/44189
   @Deprecated(
@@ -1947,25 +2013,34 @@ abstract class BuildContext {
   )
   InheritedWidget inheritFromElement(InheritedElement ancestor, { Object aspect });
 
+  /// 向[ancestor]注册此构建上下文，以便在[ancestor]的小部件更改此构建上下文时重新构建。
   /// Registers this build context with [ancestor] such that when
   /// [ancestor]'s widget changes this build context is rebuilt.
   ///
+  /// 返回`ancestor.widget`.
   /// Returns `ancestor.widget`.
   ///
+  /// 很少直接调用此方法。大多数应用程序应该使用[dependOnInheritedWidgetOfExactType]，
+  /// 它在找到合适的[InheritedElement]祖先后调用这个方法。
   /// This method is rarely called directly. Most applications should use
   /// [dependOnInheritedWidgetOfExactType], which calls this method after finding
   /// the appropriate [InheritedElement] ancestor.
   ///
+  /// 关于何时[dependOnInheritedWidgetOfExactType]的所有限定条件都也适用于这个方法。
   /// All of the qualifications about when [dependOnInheritedWidgetOfExactType] can
   /// be called apply to this method as well.
   InheritedWidget dependOnInheritedElement(InheritedElement ancestor, { Object aspect });
 
+  /// 获得最近的给定类型的部件,这个类型必须是(InheritedWidget)的子类,并注册这个构建上下
+  /// 文与小部件,这样当小部件变化(或一个新的这个类型的小部件被引用,或消失),这个构建上下文会
+  /// 被重建，以便它可以重建获得部件的新值。
   /// Obtains the nearest widget of the given type, which must be the type of a
   /// concrete [InheritedWidget] subclass, and registers this build context with
   /// that widget such that when that widget changes (or a new widget of that
   /// type is introduced, or the widget goes away), this build context is
   /// rebuilt so that it can obtain new values from that widget.
   ///
+  /// 过期。请使用[dependOnInheritedWidgetOfExactType].
   /// This method is deprecated. Please use [dependOnInheritedWidgetOfExactType] instead.
   // TODO(a14n): Remove this when it goes to stable, https://github.com/flutter/flutter/pull/44189
   @Deprecated(
@@ -1974,15 +2049,22 @@ abstract class BuildContext {
   )
   InheritedWidget inheritFromWidgetOfExactType(Type targetType, { Object aspect });
 
+  /// 获得最近的给定类型的部件,这个类型必须是(InheritedWidget)的子类,并注册这个构建上下
+  /// 文与小部件,这样当小部件变化(或一个新的这个类型的小部件被引用,或消失),这个构建上下文会
+  /// 被重建，以便它可以重建获得部件的新值。
   /// Obtains the nearest widget of the given type [T], which must be the type of a
   /// concrete [InheritedWidget] subclass, and registers this build context with
   /// that widget such that when that widget changes (or a new widget of that
   /// type is introduced, or the widget goes away), this build context is
   /// rebuilt so that it can obtain new values from that widget.
   ///
+  /// 这通常被'of()'隐式调用，例如[Theme.of]
   /// This is typically called implicitly from `of()` static methods, e.g.
   /// [Theme.of].
   ///
+  /// 不应该从小部件构造函数或从[State]调用此方法。因为如果继承的值发生更改，将不会再次调用
+  /// 这些方法。要确保小部件在继承的值更改时正确地更新自身，只需从build方法、layout和
+  /// paint回调或[State.didChangeDependencies]中调用(直接或间接)。
   /// This method should not be called from widget constructors or from
   /// [State.initState] methods, because those methods would not get called
   /// again if the inherited value were to change. To ensure that the widget
@@ -1990,34 +2072,47 @@ abstract class BuildContext {
   /// (directly or indirectly) from build methods, layout and paint callbacks, or
   /// from [State.didChangeDependencies].
   ///
+  /// 不应该在[State.dispose]调用此方法。因为元素树在那个时候不再稳定。要引用该方法的祖先，
+  /// 请在[State.didChangeDependencies]中保存对祖先的引用。在[State.deactivate]中
+  /// 使用这个方法是安全的，当小部件从树中删除时，就会调用这个方法。
   /// This method should not be called from [State.dispose] because the element
   /// tree is no longer stable at that time. To refer to an ancestor from that
   /// method, save a reference to the ancestor in [State.didChangeDependencies].
   /// It is safe to use this method from [State.deactivate], which is called
   /// whenever the widget is removed from the tree.
   ///
+  /// 如果该值以后不会被缓存和重用，也可以从交互事件处理程序(例如，手势回调)或计时器调用此
+  /// 方法来一次性获取一个值。
   /// It is also possible to call this method from interaction event handlers
   /// (e.g. gesture callbacks) or timers, to obtain a value once, if that value
   /// is not going to be cached and reused later.
   ///
+  /// 调用这个方法是带有一个小常数因子的O(1)，但是会导致更频繁地重新构建小部件。
   /// Calling this method is O(1) with a small constant factor, but will lead to
   /// the widget being rebuilt more often.
   ///
+  /// 一旦小部件通过调用此方法注册了对特定类型的依赖项，它将被重新构建，并且当与该小部件相关
+  /// 的更改发生时，[State.didChangeDependencies]将被调用。直到下一次移动该小部件或其
+  /// 祖先之一(例如，因为添加或删除了一个祖先)。
   /// Once a widget registers a dependency on a particular type by calling this
   /// method, it will be rebuilt, and [State.didChangeDependencies] will be
   /// called, whenever changes occur relating to that widget until the next time
   /// the widget or one of its ancestors is moved (for example, because an
   /// ancestor is added or removed).
   ///
+  /// [aspect]参数只在[T]是支持部分更新的[InheritedWidget]子类时使用，比如
+  /// [InheritedModel]。它指定了这个上下文所依赖的继承小部件的什么“aspect”。
   /// The [aspect] parameter is only used when [T] is an
   /// [InheritedWidget] subclasses that supports partial updates, like
   /// [InheritedModel]. It specifies what "aspect" of the inherited
   /// widget this context depends on.
   T dependOnInheritedWidgetOfExactType<T extends InheritedWidget>({ Object aspect });
 
+  /// 获取与给定类型的最近小部件对应的元素，该小部件必须是[InheritedWidget]子类的实例。
   /// Obtains the element corresponding to the nearest widget of the given type,
   /// which must be the type of a concrete [InheritedWidget] subclass.
   ///
+  /// 过期. 请使用[getElementForInheritedWidgetOfExactType].
   /// This method is deprecated. Please use [getElementForInheritedWidgetOfExactType] instead.
   // TODO(a14n): Remove this when it goes to stable, https://github.com/flutter/flutter/pull/44189
   @Deprecated(
@@ -2026,16 +2121,24 @@ abstract class BuildContext {
   )
   InheritedElement ancestorInheritedElementForWidgetOfExactType(Type targetType);
 
+  /// 获取与给定类型[T]最近的小部件对应的元素，该小部件必须是一个[InheritedWidget]子类
+  /// 实例。
   /// Obtains the element corresponding to the nearest widget of the given type [T],
   /// which must be the type of a concrete [InheritedWidget] subclass.
   ///
+  /// 如果找不到则返回null。
   /// Returns null if no such element is found.
   ///
+  /// 调用这个方法是O(1)加上一个小的常数因子。
   /// Calling this method is O(1) with a small constant factor.
   ///
+  /// 该方法不像[dependOnInheritedWidgetOfExactType]那样与目标建立关系。
   /// This method does not establish a relationship with the target in the way
   /// that [dependOnInheritedWidgetOfExactType] does.
   ///
+  /// 不应该在[State.dispose]调用此方法。因为元素树在那个时候不再稳定。要引用该方法的祖先，
+  /// 请在[State.didChangeDependencies]中保存对祖先的引用。在[State.deactivate]中
+  /// 使用这个方法是安全的，当小部件从树中删除时，就会调用这个方法。
   /// This method should not be called from [State.dispose] because the element
   /// tree is no longer stable at that time. To refer to an ancestor from that
   /// method, save a reference to the ancestor by calling
@@ -2044,9 +2147,11 @@ abstract class BuildContext {
   /// the widget is removed from the tree.
   InheritedElement getElementForInheritedWidgetOfExactType<T extends InheritedWidget>();
 
+  /// 返回最近的给定类型的祖先widget，结果一定是Widget子类的实例。
   /// Returns the nearest ancestor widget of the given type, which must be the
   /// type of a concrete [Widget] subclass.
   ///
+  /// 过期. 请使用[findAncestorWidgetOfExactType].
   /// This method is deprecated. Please use [findAncestorWidgetOfExactType] instead.
   // TODO(a14n): Remove this when it goes to stable, https://github.com/flutter/flutter/pull/44189
   @Deprecated(
@@ -2055,9 +2160,15 @@ abstract class BuildContext {
   )
   Widget ancestorWidgetOfExactType(Type targetType);
 
+  /// 返回最近的给定类型的祖先widget，结果一定是Widget子类的实例。
   /// Returns the nearest ancestor widget of the given type [T], which must be the
   /// type of a concrete [Widget] subclass.
   ///
+  /// 一般来说，[dependOnInheritedWidgetOfExactType]更有用，因为继承的小部件将在更改
+  /// 时触发消费者重新构建。此方法适用于交互事件处理程序(例如手势回调)或执行一次性任务，
+  /// 如断言您拥有或不具有作为祖先的特定类型小部件。小部件的构建方法的返回值不应该依赖于
+  /// 该方法返回的值，因为如果该方法的返回值发生更改，构建上下文将不会重新构建。这可能会导致
+  /// 生成方法中使用的数据发生更改，但是小部件没有重新生成。
   /// In general, [dependOnInheritedWidgetOfExactType] is more useful, since
   /// inherited widgets will trigger consumers to rebuild when they change. This
   /// method is appropriate when used in interaction event handlers (e.g.
@@ -2068,22 +2179,30 @@ abstract class BuildContext {
   /// return value of this method changes. This could lead to a situation where
   /// data used in the build method changes, but the widget is not rebuilt.
   ///
+  /// 在树的深度中调用这个方法开发较高(O(N))。只有当已知小部件到所需祖先的距离很小且有界时，
+  /// 才调用此方法。
   /// Calling this method is relatively expensive (O(N) in the depth of the
   /// tree). Only call this method if the distance from this widget to the
   /// desired ancestor is known to be small and bounded.
   ///
+  /// 不应该从[State.deactivate]或[State.dispose]调用此方法，因为此时小部件树不再稳定。
+  /// 要从这些方法中引用一个祖先，通过在[State.didChangeDependencies]中调用
+  /// [findAncestorWidgetOfExactType]来保存对祖先的引用。
   /// This method should not be called from [State.deactivate] or [State.dispose]
   /// because the widget tree is no longer stable at that time. To refer to
   /// an ancestor from one of those methods, save a reference to the ancestor
   /// by calling [findAncestorWidgetOfExactType] in [State.didChangeDependencies].
   ///
+  /// 如果请求类型的小部件没有出现在此上下文的祖先中，则返回null。
   /// Returns null if a widget of the requested type does not appear in the
   /// ancestors of this context.
   T findAncestorWidgetOfExactType<T extends Widget>();
 
+  /// 返回与给定的[TypeMatcher]匹配的最近祖先[StatefulWidget]小部件的[State]对象。
   /// Returns the [State] object of the nearest ancestor [StatefulWidget] widget
   /// that matches the given [TypeMatcher].
   ///
+  /// 已过期. 请使用[findAncestorStateOfType].
   /// This method is deprecated. Please use [findAncestorStateOfType] instead.
   // TODO(a14n): Remove this when it goes to stable, https://github.com/flutter/flutter/pull/44189
   @Deprecated(
@@ -2092,9 +2211,17 @@ abstract class BuildContext {
   )
   State ancestorStateOfType(TypeMatcher matcher);
 
+  /// 返回最近的祖先[StatefulWidget] widget的[State]对象，该对象是给定类型[T]的一个
+  /// 实例。
   /// Returns the [State] object of the nearest ancestor [StatefulWidget] widget
   /// that is an instance of the given type [T].
   ///
+  /// Returns the [State] object of the furthest ancestor [StatefulWidget] widget
+
+  /// 不应该从构建方法中使用此方法，因为如果此方法返回的值发生更改，则不会重新构建构建上下
+  /// 文。一般来说，[dependOnInheritedWidgetOfExactType]更适合这种情况。此方法对于一
+  /// 次性更改祖先小部件的状态非常有用，例如，使祖先滚动列表将此构建上下文小部件滚动到视图
+  /// 中，或者根据用户交互移动焦点。
   /// This should not be used from build methods, because the build context will
   /// not be rebuilt if the value that would be returned by this method changes.
   /// In general, [dependOnInheritedWidgetOfExactType] is more appropriate for such
@@ -2103,15 +2230,22 @@ abstract class BuildContext {
   /// scroll this build context's widget into view, or to move the focus in
   /// response to user interaction.
   ///
+  /// 不过，通常考虑使用回调来触发祖先中的有状态更改，而不是使用此方法所暗示的命令式样式。
+  /// 这通常会导致更易于维护和重用的代码，因为它将小部件彼此分离。
   /// In general, though, consider using a callback that triggers a stateful
   /// change in the ancestor rather than using the imperative style implied by
   /// this method. This will usually lead to more maintainable and reusable code
   /// since it decouples widgets from each other.
   ///
+  /// 在树的深度中调用这个方法是比较昂贵的(O(N))。只有当已知小部件到所需祖先的距离很小且
+  /// 有界时，才调用此方法。
   /// Calling this method is relatively expensive (O(N) in the depth of the
   /// tree). Only call this method if the distance from this widget to the
   /// desired ancestor is known to be small and bounded.
   ///
+  /// 不应该从[State.deactivate]或[State.dispose]调用此方法，因为此时小部件树不再稳定。
+  /// 要从这些方法中引用一个祖先，通过在[State.didChangeDependencies]中调用
+  /// [findAncestorStateOfType]来保存对祖先的引用。
   /// This method should not be called from [State.deactivate] or [State.dispose]
   /// because the widget tree is no longer stable at that time. To refer to
   /// an ancestor from one of those methods, save a reference to the ancestor
@@ -2125,9 +2259,11 @@ abstract class BuildContext {
   /// {@end-tool}
   T findAncestorStateOfType<T extends State>();
 
+  /// 返回与给定的[TypeMatcher]匹配的最远祖先[StatefulWidget]小部件的[State]对象。
   /// Returns the [State] object of the furthest ancestor [StatefulWidget] widget
   /// that matches the given [TypeMatcher].
   ///
+  /// 已过期. 请使用[findRootAncestorStateOfType].
   /// This method is deprecated. Please use [findRootAncestorStateOfType] instead.
   // TODO(a14n): Remove this when it goes to stable, https://github.com/flutter/flutter/pull/44189
   @Deprecated(
@@ -2136,20 +2272,26 @@ abstract class BuildContext {
   )
   State rootAncestorStateOfType(TypeMatcher matcher);
 
+  /// 返回最远的祖先[StatefulWidget]小部件的[State]对象，该小部件是给定类型[T]的一个实例。
   /// Returns the [State] object of the furthest ancestor [StatefulWidget] widget
   /// that is an instance of the given type [T].
   ///
+  /// 以与[findAncestorStateOfType]相同的方式执行函数，但是不断地访问后续的祖先，直到没有剩余的[T]类型实例。然后返回找到的最后一个。
   /// Functions the same way as [findAncestorStateOfType] but keeps visiting subsequent
   /// ancestors until there are none of the type instance of [T] remaining.
   /// Then returns the last one found.
   ///
+  /// 这个操作也是O(N)，尽管N是整个小部件树，而不是子树。
   /// This operation is O(N) as well though N is the entire widget tree rather than
   /// a subtree.
   T findRootAncestorStateOfType<T extends State>();
 
+  /// 返回与给定的[TypeMatcher]匹配的最近祖先[RenderObjectWidget]小部件的
+  /// [RenderObject]对象。
   /// Returns the [RenderObject] object of the nearest ancestor [RenderObjectWidget] widget
   /// that matches the given [TypeMatcher].
   ///
+  /// 过期. 请使用[findAncestorRenderObjectOfType].
   /// This method is deprecated. Please use [findAncestorRenderObjectOfType] instead.
   // TODO(a14n): Remove this when it goes to stable, https://github.com/flutter/flutter/pull/44189
   @Deprecated(
@@ -2158,9 +2300,15 @@ abstract class BuildContext {
   )
   RenderObject ancestorRenderObjectOfType(TypeMatcher matcher);
 
+  /// 返回最近的祖先[RenderObjectWidget]部件的[RenderObject]对象，该对象是给定类型[T]
+  /// 的一个实例。
   /// Returns the [RenderObject] object of the nearest ancestor [RenderObjectWidget] widget
   /// that is an instance of the given type [T].
   ///
+  /// 不应该从构建方法中使用此方法，因为如果此方法返回的值发生更改，则不会重新构建构建上下
+  /// 文。一般来说，[dependOnInheritedWidgetOfExactType]更适合这种情况。此方法仅在
+  /// 小部件需要导致祖先更改其布局或绘制行为的深奥情况下有用。例如，它被[Material]使用，
+  /// 因此[InkWell]部件可以触发[Material]的实际呈现对象上的墨水飞溅。
   /// This should not be used from build methods, because the build context will
   /// not be rebuilt if the value that would be returned by this method changes.
   /// In general, [dependOnInheritedWidgetOfExactType] is more appropriate for such
@@ -2169,46 +2317,68 @@ abstract class BuildContext {
   /// it is used by [Material] so that [InkWell] widgets can trigger the ink
   /// splash on the [Material]'s actual render object.
   ///
+  /// 在树的深度中调用这个方法是比较昂贵的(O(N))。只有当已知小部件到所需祖先的距离很小且有
+  /// 界时，才调用此方法。
   /// Calling this method is relatively expensive (O(N) in the depth of the
   /// tree). Only call this method if the distance from this widget to the
   /// desired ancestor is known to be small and bounded.
   ///
+  /// 不应该从[State.deactivate]或[State.dispose]调用此方法。因为此时小部件树不再稳定。
+  /// 要从这些方法中引用一个祖先，通过在[State.didChangeDependencies]中调用
+  /// [findAncestorRenderObjectOfType]来保存对祖先的引用。
   /// This method should not be called from [State.deactivate] or [State.dispose]
   /// because the widget tree is no longer stable at that time. To refer to
   /// an ancestor from one of those methods, save a reference to the ancestor
   /// by calling [findAncestorRenderObjectOfType] in [State.didChangeDependencies].
   T findAncestorRenderObjectOfType<T extends RenderObject>();
 
+  /// 遍历祖先链，从这个构建上下文小部件的父组件开始，为每个祖先调用参数。回调被赋予了对祖先
+  /// 小部件对应的[Element]对象的引用。当到达根小部件或回调返回false时，遍历将停止。回调
+  /// 不能返回null。
   /// Walks the ancestor chain, starting with the parent of this build context's
   /// widget, invoking the argument for each ancestor. The callback is given a
   /// reference to the ancestor widget's corresponding [Element] object. The
   /// walk stops when it reaches the root widget or when the callback returns
   /// false. The callback must not return null.
   ///
-  /// This is useful for inspecting the widget tree.
+  /// 这对于检查小部件树非常有用。
   ///
-  /// Calling this method is relatively expensive (O(N) in the depth of the tree).
+  /// 在树的深度中调用这个方法是比较昂贵的(O(N))。
   ///
+  /// 不应该从[State.deactivate]或[State调用此方法。因为元素树在那个时候不再稳定。要从
+  /// 这些方法中引用一个祖先，通过在[State.didChangeDependencies]中调用
+  /// [visitAncestorElements]来保存对祖先的引用。
   /// This method should not be called from [State.deactivate] or [State.dispose]
   /// because the element tree is no longer stable at that time. To refer to
   /// an ancestor from one of those methods, save a reference to the ancestor
   /// by calling [visitAncestorElements] in [State.didChangeDependencies].
   void visitAncestorElements(bool visitor(Element element));
 
+  /// 遍历此小部件的子组件。
   /// Walks the children of this widget.
   ///
+  /// 这对于在不等待下一帧的情况下将更改应用于子组件非常有用，特别是在子组件已知的情况下，
+  /// 特别是在只有一个子组件的情况下(对于[StatefulWidget]s或[StatelessWidget]s来说总
+  /// 是如此)。
   /// This is useful for applying changes to children after they are built
   /// without waiting for the next frame, especially if the children are known,
   /// and especially if there is exactly one child (as is always the case for
   /// [StatefulWidget]s or [StatelessWidget]s).
   ///
+  /// 对于与[StatefulWidget]s或[StatelessWidget]s (O(1)相对应的构建上下文来说，调用
+  /// 这个方法是非常便宜的，因为只有一个子组件)。
   /// Calling this method is very cheap for build contexts that correspond to
   /// [StatefulWidget]s or [StatelessWidget]s (O(1), since there's only one
   /// child).
   ///
+  /// 对于与[RenderObjectWidget]s (O(N)根据children数量而定)对应的构建上下文来说，
+  /// 调用这个方法可能会比较昂贵。
   /// Calling this method is potentially expensive for build contexts that
   /// correspond to [RenderObjectWidget]s (O(N) in the number of children).
   ///
+  /// 递归调用这个方法非常昂贵(O(N)的后代数量)，应该尽可能避免。通常，使用
+  /// [InheritedWidget]并让后代向下拉数据要比递归地使用[visitChildElements]将数据向下
+  /// 推给它们要便宜得多。
   /// Calling this method recursively is extremely expensive (O(N) in the number
   /// of descendants), and should be avoided if possible. Generally it is
   /// significantly cheaper to use an [InheritedWidget] and have the descendants
@@ -2216,18 +2386,23 @@ abstract class BuildContext {
   /// data down to them.
   void visitChildElements(ElementVisitor visitor);
 
+  /// 从当前构建上下文返回[Element]的描述。
   /// Returns a description of an [Element] from the current build context.
   DiagnosticsNode describeElement(String name, {DiagnosticsTreeStyle style = DiagnosticsTreeStyle.errorProperty});
 
+  /// 返回与当前构建上下文关联的[Widget]的描述。
   /// Returns a description of the [Widget] associated with the current build context.
   DiagnosticsNode describeWidget(String name, {DiagnosticsTreeStyle style = DiagnosticsTreeStyle.errorProperty});
 
+  /// 添加当前构建上下文的祖先树中缺少的特定类型小部件的描述。
   /// Adds a description of a specific type of widget missing from the current
   /// build context's ancestry tree.
   ///
+  /// 您可以在[debugCheckHasMaterial]中找到使用此方法的示例。
   /// You can find an example of using this method in [debugCheckHasMaterial].
   List<DiagnosticsNode> describeMissingAncestor({ @required Type expectedAncestorType });
 
+  /// 将来自特定[element]的所有权链的描述添加到错误报告。
   /// Adds a description of the ownership chain from a specific [Element]
   /// to the error report.
   ///
