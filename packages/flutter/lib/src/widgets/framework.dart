@@ -1459,19 +1459,18 @@ abstract class ParentDataWidget<T extends ParentData> extends ProxyWidget {
   bool debugCanApplyOutOfTurn() => false;
 }
 
-/// Base class for widgets that efficiently propagate information down the tree.
+/// 用于有效地沿树传播信息的小部件的基类。
 ///
-/// To obtain the nearest instance of a particular type of inherited widget from
-/// a build context, use [BuildContext.dependOnInheritedWidgetOfExactType].
+/// 要从build context获取特定类型的InheritedWidget的最近实例，可以使用
+/// [BuildContext.dependOnInheritedWidgetOfExactType]。
 ///
-/// Inherited widgets, when referenced in this way, will cause the consumer to
-/// rebuild when the inherited widget itself changes state.
+/// 以这种方式引用继承的widget，当inherited widget本身更改状态时，将导致使用者重新构建。
 ///
 /// {@youtube 560 315 https://www.youtube.com/watch?v=Zbm3hjPjQMk}
 ///
 /// {@tool snippet}
 ///
-/// The following is a skeleton of an inherited widget called `FrogColor`:
+/// 下面是一个名为“FrogColor”的继承小部件的框架:
 ///
 /// ```dart
 /// class FrogColor extends InheritedWidget {
@@ -1495,58 +1494,46 @@ abstract class ParentDataWidget<T extends ParentData> extends ProxyWidget {
 /// ```
 /// {@end-tool}
 ///
-/// The convention is to provide a static method `of` on the [InheritedWidget]
-/// which does the call to [BuildContext.dependOnInheritedWidgetOfExactType]. This
-/// allows the class to define its own fallback logic in case there isn't
-/// a widget in scope. In the example above, the value returned will be
-/// null in that case, but it could also have defaulted to a value.
+/// 约定是在[InheritedWidget]上提供一个静态方法' of '，它调用
+/// [BuildContext.dependOnInheritedWidgetOfExactType]。这允许类在范围中没有widget
+/// 时定义自己的回退逻辑。在上面的例子中，在这种情况下返回的值将为null，但是它也可以默认
+/// 为一个值。
 ///
-/// Sometimes, the `of` method returns the data rather than the inherited
-/// widget; for example, in this case it could have returned a [Color] instead
-/// of the `FrogColor` widget.
+/// 有时，' of '方法会返回数据，而不是inherited widget;例如，在这种情况下，它可以返回一个
+/// [Color]而不是' FrogColor '小部件。
 ///
-/// Occasionally, the inherited widget is an implementation detail of another
-/// class, and is therefore private. The `of` method in that case is typically
-/// put on the public class instead. For example, [Theme] is implemented as a
-/// [StatelessWidget] that builds a private inherited widget; [Theme.of] looks
-/// for that inherited widget using [BuildContext.dependOnInheritedWidgetOfExactType]
-/// and then returns the [ThemeData].
+/// 有时，继承的小部件是另一个类的实现细节，因此是私有的。在这种情况下，' of '方法通常放在
+/// public类上。例如，[Theme]被实现为一个[StatelessWidget]，它构建了一个私有的继承小部
+/// 件;[Theme.of]使用[BuildContext.dependOnInheritedWidgetOfExactType]查找继承的
+/// 小部件，然后返回[ThemeData]。
 ///
 /// {@youtube 560 315 https://www.youtube.com/watch?v=1t-8rBCGBYw}
 ///
-/// See also:
+/// 另请参阅:
 ///
-///  * [StatefulWidget] and [State], for widgets that can build differently
-///    several times over their lifetime.
-///  * [StatelessWidget], for widgets that always build the same way given a
-///    particular configuration and ambient state.
-///  * [Widget], for an overview of widgets in general.
-///  * [InheritedNotifier], an inherited widget whose value can be a
-///    [Listenable], and which will notify dependents whenever the value
-///    sends notifications.
-///  * [InheritedModel], an inherited widget that allows clients to subscribe
-///    to changes for subparts of the value.
+///  * [StatefulWidget]和[State]，用于在其生命周期内多次构建不同的小部件。
+///  * [StatelessWidget]，用于在给定特定配置和环境状态时始终以相同方式构建的小部件。
+///  * [Widget]，用于对Widget的一般概述。
+///  * [InheritedNotifier]，这是一个继承的小部件，它的值可以是[Listenable]，当这个值
+///    发送通知时，它就会通知相关的人。
+///  * [InheritedModel]，这是一个继承的小部件，允许客户端订阅值的子部分的更改。
 abstract class InheritedWidget extends ProxyWidget {
-  /// Abstract const constructor. This constructor enables subclasses to provide
-  /// const constructors so that they can be used in const expressions.
+  /// abstract const构造函数。这个构造函数允许子类提供const构造函数，以便可以在const
+  /// 表达式中使用它们。
   const InheritedWidget({ Key key, Widget child })
     : super(key: key, child: child);
 
   @override
   InheritedElement createElement() => InheritedElement(this);
 
-  /// Whether the framework should notify widgets that inherit from this widget.
+  /// 框架是否应该通知继承自此widget的widget。
   ///
-  /// When this widget is rebuilt, sometimes we need to rebuild the widgets that
-  /// inherit from this widget but sometimes we do not. For example, if the data
-  /// held by this widget is the same as the data held by `oldWidget`, then we
-  /// do not need to rebuild the widgets that inherited the data held by
-  /// `oldWidget`.
+  /// 当重新构建此小部件时，有时需要重新构建从该小部件继承的小部件，但有时不需要。例如，
+  /// 如果这个小部件所持有的数据与‘oldWidget’所持有的数据相同，那么我们就不需要重新构建
+  /// 继承了‘oldWidget’所持有数据的小部件。
   ///
-  /// The framework distinguishes these cases by calling this function with the
-  /// widget that previously occupied this location in the tree as an argument.
-  /// The given widget is guaranteed to have the same [runtimeType] as this
-  /// object.
+  /// 框架通过调用这个函数来区分这些情况，它使用先前占据树中这个位置的小部件作为参数。给定
+  /// 的小部件保证具有与此对象相同的[runtimeType]。
   @protected
   bool updateShouldNotify(covariant InheritedWidget oldWidget);
 }
